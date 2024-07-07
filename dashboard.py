@@ -47,7 +47,7 @@ app.layout = html.Div([
             start_date="2020-01-01",
             end_date=data['StartDate'].max(),
             display_format='MMM D, YYYY',
-            style={'marginBottom': '20px'}
+            style={'marginBottom': '20px', 'fontSize': '12px'}
         ),
         html.Br(),
         html.Label('Region', style={'color': 'white'}),
@@ -83,7 +83,7 @@ app.layout = html.Div([
         html.Button(id='filter-button', n_clicks=0, children='Apply Filters', style={'marginTop': '20px',
                                                                                      'margin': '5px'}),
         html.Div(id='stats-div', style={'color': 'white', 'marginTop': '20px'})
-    ],  style={'width': '20%', 'float': 'left', 'backgroundColor': '#00355f', 'padding': '20px',
+    ],  style={'width': '16%', 'float': 'left', 'backgroundColor': '#00355f', 'padding': '20px',
                'position': 'fixed', 'height': '100vh', 'overflow': 'auto'}),
 
     html.Div([
@@ -196,8 +196,9 @@ def update_graphs(n_clicks, start_date, end_date,
 
     fig_histogram = px.histogram(filtered_data, x='Price', title='Price Distribution')
     median_price_suburb = filtered_data.groupby('Suburb')['Price'].median().reset_index()
+    median_price_suburb_sorted = median_price_suburb.sort_values(by='Price', ascending=False)
     fig_median_price_suburb = px.bar(
-        median_price_suburb,
+        median_price_suburb_sorted,
         x='Suburb',
         y='Price',
         labels={"Price": "Median Price (millions)"},
@@ -218,7 +219,7 @@ def update_graphs(n_clicks, start_date, end_date,
     fig_map.update_layout(mapbox_style='open-street-map', title='Listings on Map', height=800)
     fig_bar = px.bar(filtered_data['PropertyType'].value_counts().reset_index(),
                      x='index', y='PropertyType', title='Number of Listings by Property Type')
-    fig_scatter = px.scatter(filtered_data, x='LandArea', y='Price', title='Price vs. Land Area')
+    fig_scatter = px.scatter(filtered_data, x='Area', y='Price', title='Price vs. Floor Area')
     fig_price_bedrooms = create_price_bedrooms_boxplot(filtered_data)
     fig_price_bathrooms = create_price_bathrooms_boxplot(filtered_data)
     # Get filtered data but with the null prices
