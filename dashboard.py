@@ -6,6 +6,7 @@ import plotly.express as px
 from dash.dependencies import Input, Output, State
 from dotenv import load_dotenv
 import utils
+import os
 
 
 try:
@@ -177,4 +178,5 @@ def update_graphs(n_clicks, region, district, suburb, price_range, bedroom_range
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    port = int(os.environ.get('PORT', 10000))  # Default to 10000 if PORT not set
+    app.run_server(host='0.0.0.0', port=port, debug=True)
