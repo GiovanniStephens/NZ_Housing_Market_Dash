@@ -22,6 +22,7 @@ def fetch_data(supabase):
 
 
 app = dash.Dash(__name__)
+server = app.server
 data = fetch_data(utils.connect_to_supabase())
 data['Price'] = data['Price'] / 1000000
 
