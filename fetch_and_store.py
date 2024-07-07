@@ -66,9 +66,14 @@ def convert_date_string(date_string):
 
 
 def extract_price(price_string):
-    price = re.findall('[0-9]+', price_string)
-    price = ''.join(price)
-    return price
+    regex = r'\$\d{1,3}(,\d{3})*(\.\d{2})?'
+    match = re.search(regex, price_string)
+    if match:
+        matched_string = match.group(0)
+        cleaned_string = matched_string.replace('$', '').replace(',', '')
+        return cleaned_string
+    else:
+        return None
 
 
 def store_date(data, supabase):
