@@ -34,6 +34,7 @@ def connect_to_trademe():
 
 def fetch_trademe_data(trademe, url):
     # Make initial request to get number of pages
+    print('Fetching page 1 of n')
     returned_page_all = trademe.get(url)
     data_raw = returned_page_all.content
     parsed_data = json.loads(data_raw)
@@ -42,6 +43,7 @@ def fetch_trademe_data(trademe, url):
     total_n_requests = int(total_count/500) + 1
     data_df = pd.DataFrame.from_dict(listings)
     for i in range(2, total_n_requests+1):
+        print(f'Fetching page {i} of {total_n_requests}')
         name_num = str(i)
         page_url = f'{url}&page={name_num}&sort_order=Default HTTP/1.1'
         returned_page_all = trademe.get(page_url)
@@ -84,6 +86,8 @@ def store_date(data, supabase):
     data['Price'] = data['Price'].replace('', None).astype(float, errors='ignore').replace({np.nan: None})
     data['LandArea'] = data['LandArea'].fillna(0)
     data['LandArea'] = data['LandArea'].astype(int)
+    data['Area'] = data['Area'].fillna(0)
+    data['Area'] = data['Area'].astype(int)
     data['Parking'] = data['Parking'].replace('', None)
     data['Amenities'] = data['Amenities'].fillna('').replace('', None)
     data = data.replace({np.nan: None})
