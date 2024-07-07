@@ -42,13 +42,16 @@ app.layout = html.Div([
     html.Div([
         html.H2('Filters', style={'color': 'white'}),
         html.Label('Region', style={'color': 'white'}),
-        dcc.Dropdown(id='region-dropdown', options=regions, value='All Regions', style={'marginBottom': '20px'}),
+        dcc.Dropdown(id='region-dropdown', options=regions, value='All Regions', style={'marginBottom': '20px'},
+                     multi=True, clearable=True, searchable=True, placeholder='Select Region'),
         html.Label('District', style={'color': 'white'}),
-        dcc.Dropdown(id='district-dropdown', options=districts, value='All Districts', style={'marginBottom': '20px'}),
+        dcc.Dropdown(id='district-dropdown', options=districts, value='All Districts', style={'marginBottom': '20px'},
+                     multi=True, clearable=True, searchable=True, placeholder='Select District'),
         html.Label('Suburb', style={'color': 'white'}),
-        dcc.Dropdown(id='suburb-dropdown', options=suburbs, value='All Suburbs', style={'marginBottom': '20px'}),
+        dcc.Dropdown(id='suburb-dropdown', options=suburbs, value='All Suburbs', style={'marginBottom': '20px'},
+                     multi=True, clearable=True, searchable=True, placeholder='Select Suburb'),
         html.Label('Price Range', style={'color': 'white'}),
-        dcc.RangeSlider(id='price-slider', min=data['Price'].min(), max=data['Price'].max(), step=0.5,
+        dcc.RangeSlider(id='price-slider', min=data['Price'].min(), max=data['Price'].max(), step=0.1 if data['Price'].max() < 5 else 0.5,
                         marks={price: f"${price:.1f}m" for price in range(int(data['Price'].min()),
                                                                           int(data['Price'].max()) + 1,
                                                                           1 if data['Price'].max() < 5
@@ -66,10 +69,10 @@ app.layout = html.Div([
         html.Br(),
         html.Label('Property Type', style={'color': 'white'}),
         dcc.Dropdown(id='property-type-dropdown', options=property_types, value='All Property Types',
-                     style={'marginBottom': '20px'}),
+                     style={'marginBottom': '20px'}, multi=True),
         html.Button(id='filter-button', n_clicks=0, children='Apply Filters'),
         html.Div(id='stats-div', style={'color': 'white', 'marginTop': '20px'})
-    ],  style={'width': '20%', 'float': 'left', 'backgroundColor': 'navy', 'padding': '20px',
+    ],  style={'width': '20%', 'float': 'left', 'backgroundColor': '#00355f', 'padding': '20px',
                'position': 'fixed', 'height': '100vh', 'overflow': 'auto'}),
 
     html.Div([
@@ -90,22 +93,25 @@ app.layout = html.Div([
      Input('suburb-dropdown', 'value')]
 )
 def update_dropdowns(selected_region, selected_district, selected_suburb):
-    filtered_data = data
-
-    if selected_region != 'All Regions':
-        filtered_data = filtered_data[filtered_data['Region'] == selected_region]
-
-    if selected_district != 'All Districts':
-        filtered_data = filtered_data[filtered_data['District'] == selected_district]
-
-    if selected_suburb != 'All Suburbs':
-        filtered_data = filtered_data[filtered_data['Suburb'] == selected_suburb]
-    districts = [{'label': 'All Districts', 'value': 'All Districts'}]\
-        + [{'label': district, 'value': district} for district in filtered_data['District'].unique()]
-    suburbs = [{'label': 'All Suburbs', 'value': 'All Suburbs'}]\
-        + [{'label': suburb, 'value': suburb} for suburb in filtered_data['Suburb'].unique()]
-    property_types = [{'label': 'All Property Types', 'value': 'All Property Types'}]\
-        + [{'label': ptype, 'value': ptype} for ptype in filtered_data['PropertyType'].unique()]
+    filtered_data = data.copy()
+    if selected_region == 'All Regions' or not selected_region or 'All Regions' in selected_region:
+        filtered_data = data.copy()
+    else:
+        filtered_data = data[data['Region'].isin(selected_region)]
+    districts = [{'label': 'All Districts', 'value': 'All Districts'}] + \
+        [{'label': district, 'value': district} for district in filtered_data['District'].unique()]
+    if selected_district == 'All Districts' or not selected_district or 'All Districts' in selected_district:
+        filtered_data = filtered_data
+    else:
+        filtered_data = filtered_data[filtered_data['District'].isin(selected_district)]
+    suburbs = [{'label': 'All Suburbs', 'value': 'All Suburbs'}] + \
+        [{'label': suburb, 'value': suburb} for suburb in filtered_data['Suburb'].unique()]
+    if selected_suburb == 'All Suburbs' or not selected_suburb or 'All Suburbs' in selected_suburb:
+        filtered_data = filtered_data
+    else:
+        filtered_data = filtered_data[filtered_data['Suburb'].isin(selected_suburb)]
+    property_types = [{'label': 'All Property Types', 'value': 'All Property Types'}] + \
+        [{'label': ptype, 'value': ptype} for ptype in filtered_data['PropertyType'].unique()]
     return districts, suburbs, property_types
 
 
@@ -128,17 +134,18 @@ def update_dropdowns(selected_region, selected_district, selected_suburb):
 def update_graphs(n_clicks, region, district, suburb, price_range, bedroom_range, bathroom_range, property_type):
     filtered_data = data
     filtered_data_with_nulls = data
-    if region != 'All Regions':
-        filtered_data = filtered_data[filtered_data['Region'] == region]
-        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Region'] == region) |
+    print(region)
+    if region != 'All Regions' and region and 'All Regions' not in region:
+        filtered_data = filtered_data[filtered_data['Region'].isin(region)]
+        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Region'].isin(region)) |
                                                             (filtered_data_with_nulls['Region'].isnull())]
-    if district != 'All Districts':
-        filtered_data = filtered_data[filtered_data['District'] == district]
-        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['District'] == district) |
+    if district != 'All Districts' and district and 'All Districts' not in district:
+        filtered_data = filtered_data[filtered_data['District'].isin(district)]
+        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['District'].isin(district)) |
                                                             (filtered_data_with_nulls['District'].isnull())]
-    if suburb != 'All Suburbs':
-        filtered_data = filtered_data[filtered_data['Suburb'] == suburb]
-        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Suburb'] == suburb) |
+    if suburb != 'All Suburbs' and suburb and 'All Suburbs' not in suburb:
+        filtered_data = filtered_data[filtered_data['Suburb'].isin(suburb)]
+        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Suburb'].isin(suburb)) |
                                                             (filtered_data_with_nulls['Suburb'].isnull())]
     filtered_data = filtered_data[(filtered_data['Price'] >= price_range[0])
                                   & (filtered_data['Price'] <= price_range[1])]
@@ -155,9 +162,9 @@ def update_graphs(n_clicks, region, district, suburb, price_range, bedroom_range
     filtered_data_with_nulls = filtered_data_with_nulls[((filtered_data_with_nulls['Bathrooms'] >= bathroom_range[0])
                                                         & (filtered_data_with_nulls['Bathrooms'] <= bathroom_range[1]))
                                                         | (filtered_data_with_nulls['Bathrooms'].isnull())]
-    if property_type != 'All Property Types':
-        filtered_data = filtered_data[filtered_data['PropertyType'] == property_type]
-        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['PropertyType'] == property_type)
+    if property_type != 'All Property Types' and property_type:
+        filtered_data = filtered_data[filtered_data['PropertyType'].isin(property_type)]
+        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['PropertyType'].isin(property_type))
                                                             | (filtered_data_with_nulls['PropertyType'].isnull())]
 
     fig_histogram = px.histogram(filtered_data, x='Price', title='Price Distribution')
