@@ -80,12 +80,8 @@ def extract_price(price_string):
 
 def store_date(data, supabase):
     data = data.drop_duplicates(subset=['ListingId'])
-    data['StartDate'] = data['StartDate'].apply(convert_date_string)
-    data['EndDate'] = data['EndDate'].apply(convert_date_string)
     data['Price'] = data['PriceDisplay'].apply(extract_price)
     data['Price'] = data['Price'].replace('', None).astype(float, errors='ignore').replace({np.nan: None})
-    data['LandArea'] = data['LandArea'].astype(int)
-    data['Area'] = data['Area'].astype(int)
     data['Parking'] = data['Parking'].replace('', None)
     data['Amenities'] = data['Amenities'].fillna('').replace('', None)
     data = data.replace({np.nan: None})
@@ -96,12 +92,13 @@ def store_date(data, supabase):
     data_to_insert = []
     for i in range(len(data)):
         data_to_insert.append(data.iloc[i].to_dict())
-    supabase.table("Listings").upsert(data_to_insert).execute()
+    supabase.table("Listings").upsert(data_to_insert, on_conflict='ListingId').execute()
 
 
 if __name__ == '__main__':
     trademe = connect_to_trademe()
     url = os.getenv('TRADEME_HOUSES_URL')
-    data = fetch_trademe_data(trademe, url)
+    # data = fetch_trademe_data(trademe, url)
+    data = pd.read_pickle('data.pkl')
     supabase = utils.connect_to_supabase()
     store_date(data, supabase)
