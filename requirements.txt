@@ -1,0 +1,10 @@
+dash==2.16.1
+dash_core_components==2.0.0
+dash_html_components==2.0.0
+keyring==25.1.0
+numpy==1.26.4
+pandas==1.5.3
+plotly==5.20.0
+python-dotenv==1.0.1
+requests_oauthlib==2.0.0
+supabase==2.5.1
