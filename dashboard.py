@@ -41,6 +41,15 @@ property_types.insert(0, {'label': 'All Property Types', 'value': 'All Property 
 app.layout = html.Div([
     html.Div([
         html.H2('Filters', style={'color': 'white'}),
+        html.Label('Start Date Range:', style={'color': 'white'}),
+        dcc.DatePickerRange(
+            id='date-picker-range',
+            start_date="2020-01-01",
+            end_date=data['StartDate'].max(),
+            display_format='MMM D, YYYY',
+            style={'marginBottom': '20px'}
+        ),
+        html.Br(),
         html.Label('Region', style={'color': 'white'}),
         dcc.Dropdown(id='region-dropdown', options=regions, value='All Regions', style={'marginBottom': '20px'},
                      multi=True, clearable=True, searchable=True, placeholder='Select Region'),
@@ -51,7 +60,8 @@ app.layout = html.Div([
         dcc.Dropdown(id='suburb-dropdown', options=suburbs, value='All Suburbs', style={'marginBottom': '20px'},
                      multi=True, clearable=True, searchable=True, placeholder='Select Suburb'),
         html.Label('Price Range', style={'color': 'white'}),
-        dcc.RangeSlider(id='price-slider', min=data['Price'].min(), max=data['Price'].max(), step=0.1 if data['Price'].max() < 5 else 0.5,
+        dcc.RangeSlider(id='price-slider', min=data['Price'].min(), max=data['Price'].max(),
+                        step=0.1 if data['Price'].max() < 5 else 0.5,
                         marks={price: f"${price:.1f}m" for price in range(int(data['Price'].min()),
                                                                           int(data['Price'].max()) + 1,
                                                                           1 if data['Price'].max() < 5
@@ -70,18 +80,36 @@ app.layout = html.Div([
         html.Label('Property Type', style={'color': 'white'}),
         dcc.Dropdown(id='property-type-dropdown', options=property_types, value='All Property Types',
                      style={'marginBottom': '20px'}, multi=True),
-        html.Button(id='filter-button', n_clicks=0, children='Apply Filters'),
+        html.Button(id='filter-button', n_clicks=0, children='Apply Filters', style={'marginTop': '20px',
+                                                                                     'margin': '5px'}),
+        html.Button('Refresh Data', id='refresh-button', n_clicks=0, style={'marginTop': '20px', 'margin': '5px',
+                                                                            'minWidth': '20%', 'minHeight': '20px'}),
         html.Div(id='stats-div', style={'color': 'white', 'marginTop': '20px'})
     ],  style={'width': '20%', 'float': 'left', 'backgroundColor': '#00355f', 'padding': '20px',
                'position': 'fixed', 'height': '100vh', 'overflow': 'auto'}),
 
     html.Div([
         dcc.Graph(id='price-distribution', style={'height': '800px'}),
+        dcc.Graph(id='median-price-by-suburb', style={'height': '800px'}),
+        dcc.Graph(id='median-price-over-time', style={'height': '800px'}),
         dcc.Graph(id='listings-on-map', style={'height': '800px'}),
         dcc.Graph(id='listings-by-property-type', style={'height': '800px'}),
-        dcc.Graph(id='price-vs-land-area', style={'height': '800px'})
+        dcc.Graph(id='price-vs-land-area', style={'height': '800px'}),
+        dcc.Graph(id='price-vs-bedrooms', style={'height': '800'}),
+        dcc.Graph(id='price-vs-bathrooms', style={'height': '800px'}),
     ], style={'display': 'inline-block', 'width': '75%', 'padding': '20px', 'float': 'right'})
 ])
+
+
+@app.callback(
+    Output('refresh-button', 'children'),
+    [Input('refresh-button', 'n_clicks')]
+)
+def refresh_graph(n_clicks):
+    global data
+    data = fetch_data(utils.connect_to_supabase())
+    data['Price'] = data['Price'] / 1000000
+    return 'Refresh Data'
 
 
 @app.callback(
@@ -117,13 +145,21 @@ def update_dropdowns(selected_region, selected_district, selected_suburb):
 
 # Callback to update the graphs based on filters
 @app.callback(
-    [Output('price-distribution', 'figure'),
+    [
+     Output('price-distribution', 'figure'),
      Output('listings-on-map', 'figure'),
      Output('listings-by-property-type', 'figure'),
      Output('price-vs-land-area', 'figure'),
-     Output('stats-div', 'children')],
+     Output('price-vs-bedrooms', 'figure'),
+     Output('price-vs-bathrooms', 'figure'),
+     Output('median-price-by-suburb', 'figure'),
+     Output('median-price-over-time', 'figure'),
+     Output('stats-div', 'children')
+    ],
     [Input('filter-button', 'n_clicks')],
-    [State('region-dropdown', 'value'),
+    [State('date-picker-range', 'start_date'),
+     State('date-picker-range', 'end_date'),
+     State('region-dropdown', 'value'),
      State('district-dropdown', 'value'),
      State('suburb-dropdown', 'value'),
      State('price-slider', 'value'),
@@ -131,10 +167,11 @@ def update_dropdowns(selected_region, selected_district, selected_suburb):
      State('bathrooms-slider', 'value'),
      State('property-type-dropdown', 'value')]
 )
-def update_graphs(n_clicks, region, district, suburb, price_range, bedroom_range, bathroom_range, property_type):
+def update_graphs(n_clicks, start_date, end_date,
+                  region, district, suburb, price_range,
+                  bedroom_range, bathroom_range, property_type):
     filtered_data = data
     filtered_data_with_nulls = data
-    print(region)
     if region != 'All Regions' and region and 'All Regions' not in region:
         filtered_data = filtered_data[filtered_data['Region'].isin(region)]
         filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Region'].isin(region)) |
@@ -147,6 +184,8 @@ def update_graphs(n_clicks, region, district, suburb, price_range, bedroom_range
         filtered_data = filtered_data[filtered_data['Suburb'].isin(suburb)]
         filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Suburb'].isin(suburb)) |
                                                             (filtered_data_with_nulls['Suburb'].isnull())]
+    filtered_data = filtered_data[(filtered_data['StartDate'] >= start_date)
+                                  & (filtered_data['StartDate'] <= end_date)]
     filtered_data = filtered_data[(filtered_data['Price'] >= price_range[0])
                                   & (filtered_data['Price'] <= price_range[1])]
     filtered_data_with_nulls = filtered_data_with_nulls[((filtered_data_with_nulls['Price'] >= price_range[0])
@@ -164,15 +203,37 @@ def update_graphs(n_clicks, region, district, suburb, price_range, bedroom_range
                                                         | (filtered_data_with_nulls['Bathrooms'].isnull())]
     if property_type != 'All Property Types' and property_type:
         filtered_data = filtered_data[filtered_data['PropertyType'].isin(property_type)]
-        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['PropertyType'].isin(property_type))
+        filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['PropertyType']
+                                                             .isin(property_type))
                                                             | (filtered_data_with_nulls['PropertyType'].isnull())]
 
     fig_histogram = px.histogram(filtered_data, x='Price', title='Price Distribution')
+    median_price_suburb = filtered_data.groupby('Suburb')['Price'].median().reset_index()
+    fig_median_price_suburb = px.bar(
+        median_price_suburb,
+        x='Suburb',
+        y='Price',
+        labels={"Price": "Median Price (millions)"},
+        title='Median Price by Suburb',
+    )
+    fig_median_price_suburb.update_layout(xaxis_tickangle=-90)
+    filtered_data['StartDate'] = pd.to_datetime(filtered_data['StartDate'])
+    filtered_data.set_index('StartDate', inplace=True)
+    rolling_median = filtered_data['Price'].resample('D').median().rolling(window=30, min_periods=1).median()
+    fig_median_price_time = px.line(
+        rolling_median,
+        x=rolling_median.index,
+        y=rolling_median.values,
+        labels={"y": "Median Price (millions)", "x": "Date"},
+        title='30-Day Rolling Median Price by Listing Start Date'
+    )
     fig_map = px.scatter_mapbox(filtered_data, lat='Latitude', lon='Longitude', size='Price', zoom=10, height=300)
     fig_map.update_layout(mapbox_style='open-street-map', title='Listings on Map', height=800)
     fig_bar = px.bar(filtered_data['PropertyType'].value_counts().reset_index(),
                      x='index', y='PropertyType', title='Number of Listings by Property Type')
     fig_scatter = px.scatter(filtered_data, x='LandArea', y='Price', title='Price vs. Land Area')
+    fig_price_bedrooms = create_price_bedrooms_boxplot(filtered_data)
+    fig_price_bathrooms = create_price_bathrooms_boxplot(filtered_data)
     # Get filtered data but with the null prices
 
     count = len(filtered_data_with_nulls)
@@ -181,7 +242,44 @@ def update_graphs(n_clicks, region, district, suburb, price_range, bedroom_range
         html.Div(f"Count: {count}", style={'marginBottom': '10px'}),
         html.Div(f"Median Price: ${median_price:.2f}m")
     ]
-    return fig_histogram, fig_map, fig_bar, fig_scatter, stats_text
+    return fig_histogram, fig_map, fig_bar, fig_scatter, fig_price_bedrooms, fig_price_bathrooms, \
+        fig_median_price_suburb, fig_median_price_time, stats_text
+
+
+def create_price_bedrooms_boxplot(filtered_data):
+    fig_price_bedrooms = px.box(
+        filtered_data,
+        x='Bedrooms',
+        y='Price',
+        labels={"Price": "Price (millions)", "Bedrooms": "Bedrooms"},
+        title='Price Distribution vs. Bedrooms',
+        notched=True,  # shows the confidence interval around the median
+        points="all"   # show all points
+    )
+    fig_price_bedrooms.update_layout(
+        yaxis_title='Price (millions)',
+        xaxis_title='Bedrooms',
+        xaxis_type='linear'  # Treats the bedroom numbers as categorical
+    )
+    return fig_price_bedrooms
+
+
+def create_price_bathrooms_boxplot(filtered_data):
+    fig_price_bathrooms = px.box(
+        filtered_data,
+        x='Bathrooms',
+        y='Price',
+        labels={"Price": "Price (millions)", "Bathrooms": "Bathrooms"},
+        title='Price Distribution vs. Bathrooms',
+        notched=True,  # shows the confidence interval around the median
+        points="all"   # show all points
+    )
+    fig_price_bathrooms.update_layout(
+        yaxis_title='Price (millions)',
+        xaxis_title='Bathrooms',
+        xaxis_type='linear'  # Treats the bathroom numbers as categorical
+    )
+    return fig_price_bathrooms
 
 
 if __name__ == '__main__':
