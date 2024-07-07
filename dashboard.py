@@ -82,8 +82,6 @@ app.layout = html.Div([
                      style={'marginBottom': '20px'}, multi=True),
         html.Button(id='filter-button', n_clicks=0, children='Apply Filters', style={'marginTop': '20px',
                                                                                      'margin': '5px'}),
-        html.Button('Refresh Data', id='refresh-button', n_clicks=0, style={'marginTop': '20px', 'margin': '5px',
-                                                                            'minWidth': '20%', 'minHeight': '20px'}),
         html.Div(id='stats-div', style={'color': 'white', 'marginTop': '20px'})
     ],  style={'width': '20%', 'float': 'left', 'backgroundColor': '#00355f', 'padding': '20px',
                'position': 'fixed', 'height': '100vh', 'overflow': 'auto'}),
@@ -99,17 +97,6 @@ app.layout = html.Div([
         dcc.Graph(id='price-vs-bathrooms', style={'height': '800px'}),
     ], style={'display': 'inline-block', 'width': '75%', 'padding': '20px', 'float': 'right'})
 ])
-
-
-@app.callback(
-    Output('refresh-button', 'children'),
-    [Input('refresh-button', 'n_clicks')]
-)
-def refresh_graph(n_clicks):
-    global data
-    data = fetch_data(utils.connect_to_supabase())
-    data['Price'] = data['Price'] / 1000000
-    return 'Refresh Data'
 
 
 @app.callback(
