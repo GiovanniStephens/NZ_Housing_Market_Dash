@@ -33,7 +33,7 @@ jobs:
       - name: Run fetch_and_store script
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
           TRADEME_API_KEY: ${{ secrets.TRADEME_API_KEY }}
           TRADEME_API_SECRET: ${{ secrets.TRADEME_API_SECRET }}
         run: |
