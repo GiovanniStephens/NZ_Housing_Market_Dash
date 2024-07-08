@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 try:
     load_dotenv('config.env')
+    load_dotenv()
 except FileNotFoundError:
     print('No config file found.')
 

@@ -11,6 +11,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 try:
+    load_dotenv()
     load_dotenv('config.env')
 except FileNotFoundError:
     print('No config file found.')
