@@ -80,6 +80,8 @@ def extract_price(price_string):
 
 def store_date(data, supabase):
     data = data.drop_duplicates(subset=['ListingId'])
+    data['StartDate'] = data['StartDate'].apply(convert_date_string)
+    data['EndDate'] = data['EndDate'].apply(convert_date_string)
     data['Price'] = data['PriceDisplay'].apply(extract_price)
     data['Price'] = data['Price'].replace('', None).astype(float, errors='ignore').replace({np.nan: None})
     data['Parking'] = data['Parking'].replace('', None)
@@ -98,7 +100,7 @@ def store_date(data, supabase):
 if __name__ == '__main__':
     trademe = connect_to_trademe()
     url = os.getenv('TRADEME_HOUSES_URL')
-    # data = fetch_trademe_data(trademe, url)
-    data = pd.read_pickle('data.pkl')
+    data = fetch_trademe_data(trademe, url)
+    # data = pd.read_pickle('data.pkl')
     supabase = utils.connect_to_supabase()
     store_date(data, supabase)
