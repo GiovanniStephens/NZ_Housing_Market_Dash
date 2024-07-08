@@ -103,9 +103,9 @@ if __name__ == '__main__':
     supabase_key = os.getenv('SUPABASE_KEY')
     if not supabase_url or not supabase_key:
         raise ValueError("Supabase credentials are not set in the environment variables.")
-    trademe = connect_to_trademe()
-    url = os.getenv('TRADEME_HOUSES_URL')
-    data = fetch_trademe_data(trademe, url)
+    # trademe = connect_to_trademe()
+    # url = os.getenv('TRADEME_HOUSES_URL')
+    # data = fetch_trademe_data(trademe, url)
     # data = pd.read_pickle('data.pkl')
     supabase = utils.connect_to_supabase()
-    store_date(data, supabase)
+    # store_date(data, supabase)
