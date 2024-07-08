@@ -40,8 +40,8 @@ Create a `.env` file in the root directory and add the following environment var
 
 ```bash
 SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
-TRADME_KEY=your_trademe_key
+SUPABASE_API_KEY=your_supabase_key
+TRADME_API_KEY=your_trademe_key
 TRADEME_API_SECRET=your_trademe_secret
 ```
 Note that you can use keyring to store your Trademe API key and secret securely. 
