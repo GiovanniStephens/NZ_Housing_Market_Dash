@@ -99,9 +99,8 @@ def store_date(data, supabase):
 
 
 if __name__ == '__main__':
-    # trademe = connect_to_trademe()
-    # url = os.getenv('TRADEME_HOUSES_URL')
-    # data = fetch_trademe_data(trademe, url)
-    # data = pd.read_pickle('data.pkl')
+    trademe = connect_to_trademe()
+    url = os.getenv('TRADEME_HOUSES_URL')
+    data = fetch_trademe_data(trademe, url)
     supabase = utils.connect_to_supabase()
-    # store_date(data, supabase)
+    store_date(data, supabase)
