@@ -81,6 +81,9 @@ Create a table called 'Listings' in Supabase with the following schema:
 | Amenities    | text                        |
 | Latitude     | double precision            |
 | Longitude    | double precision            |
+| LastUpdatedAt| timestamp without time zone |
+
+Note that LastUpdatedAt should default to now() in NZST. 
 
 ### Extract and Store the Data
 
