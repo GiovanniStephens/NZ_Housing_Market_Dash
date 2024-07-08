@@ -1,0 +1,39 @@
+name: Fetch and Store Daily Data
+
+on:
+    push:
+      branches:
+        - main  # Replace 'main' with your default branch if different
+    schedule:
+      # Set to run at a specific time every day. Adjust the 'cron' schedule as needed.
+      # This example is set to run at 15:00 UTC daily.
+      - cron:  '0 15 * * *'
+jobs:
+  fetch_and_store:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.11.7'  # Ensure this matches the Python version you need.
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy==1.26.4
+          pip install pandas==1.5.3
+          pip install python-dotenv==1.0.1
+          pip install requests_oauthlib==2.0.0
+          pip install supabase==2.5.1
+
+      - name: Run fetch_and_store script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          TRADEME_API_KEY: ${{ secrets.TRADEME_API_KEY }}
+          TRADEME_API_SECRET: ${{ secrets.TRADEME_API_SECRET }}
+        run: |
+          python fetch_and_store.py
