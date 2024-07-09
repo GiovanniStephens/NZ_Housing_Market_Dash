@@ -44,8 +44,8 @@ app.layout = html.Div([
         html.Label('Start Date Range:', style={'color': 'white'}),
         dcc.DatePickerRange(
             id='date-picker-range',
-            start_date="2020-01-01",
-            end_date=data['StartDate'].max(),
+            start_date="2024-07-08",
+            end_date=data['LastUpdatedAt'].max(),
             display_format='MMM D, YYYY',
             style={'marginBottom': '20px', 'fontSize': '12px'}
         ),
@@ -171,8 +171,8 @@ def update_graphs(n_clicks, start_date, end_date,
         filtered_data = filtered_data[filtered_data['Suburb'].isin(suburb)]
         filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Suburb'].isin(suburb)) |
                                                             (filtered_data_with_nulls['Suburb'].isnull())]
-    filtered_data = filtered_data[(filtered_data['StartDate'] >= start_date)
-                                  & (filtered_data['StartDate'] <= end_date)]
+    filtered_data = filtered_data[(filtered_data['LastUpdatedAt'] >= start_date)
+                                  & (filtered_data['LastUpdatedAt'] <= end_date)]
     filtered_data = filtered_data[(filtered_data['Price'] >= price_range[0])
                                   & (filtered_data['Price'] <= price_range[1])]
     filtered_data_with_nulls = filtered_data_with_nulls[((filtered_data_with_nulls['Price'] >= price_range[0])
@@ -205,16 +205,26 @@ def update_graphs(n_clicks, start_date, end_date,
         title='Median Price by Suburb',
     )
     fig_median_price_suburb.update_layout(xaxis_tickangle=-90)
-    filtered_data['StartDate'] = pd.to_datetime(filtered_data['StartDate'])
-    filtered_data.set_index('StartDate', inplace=True)
-    rolling_median = filtered_data['Price'].resample('D').median().rolling(window=30, min_periods=1).median()
-    fig_median_price_time = px.line(
-        rolling_median,
-        x=rolling_median.index,
-        y=rolling_median.values,
-        labels={"y": "Median Price (millions)", "x": "Date"},
-        title='30-Day Rolling Median Price by Listing Start Date'
-    )
+    filtered_data['LastUpdatedAt'] = pd.to_datetime(filtered_data['LastUpdatedAt'])
+    n_days = (filtered_data['LastUpdatedAt'].max() - filtered_data['LastUpdatedAt'].min()).days
+    filtered_data.set_index('LastUpdatedAt', inplace=True)
+    if n_days < 30:
+        # Just show one boxplot for the median price, but make it overall... no x split
+        fig_median_price_time = px.box(
+            filtered_data,
+            y='Price',
+            title='Median Price Overall',
+            labels={"Price": "Price (millions)"}
+        )
+    else:
+        rolling_median = filtered_data['Price'].resample('D').median().rolling(window=30, min_periods=1).median()
+        fig_median_price_time = px.line(
+            rolling_median,
+            x=rolling_median.index,
+            y=rolling_median.values,
+            labels={"y": "Median Price (millions)", "x": "Date"},
+            title='30-Day Rolling Median Price by Date'
+        )
     fig_map = px.scatter_mapbox(filtered_data, lat='Latitude', lon='Longitude', size='Price', zoom=10, height=300)
     fig_map.update_layout(mapbox_style='open-street-map', title='Listings on Map', height=800)
     fig_bar = px.bar(filtered_data['PropertyType'].value_counts().reset_index(),
@@ -222,7 +232,6 @@ def update_graphs(n_clicks, start_date, end_date,
     fig_scatter = px.scatter(filtered_data, x='Area', y='Price', title='Price vs. Floor Area')
     fig_price_bedrooms = create_price_bedrooms_boxplot(filtered_data)
     fig_price_bathrooms = create_price_bathrooms_boxplot(filtered_data)
-    # Get filtered data but with the null prices
 
     count = len(filtered_data_with_nulls)
     median_price = filtered_data['Price'].median() if count > 0 else 0
@@ -242,7 +251,8 @@ def create_price_bedrooms_boxplot(filtered_data):
         labels={"Price": "Price (millions)", "Bedrooms": "Bedrooms"},
         title='Price Distribution vs. Bedrooms',
         notched=True,  # shows the confidence interval around the median
-        points="all"   # show all points
+        points="all",   # show all points
+        height=800
     )
     fig_price_bedrooms.update_layout(
         yaxis_title='Price (millions)',
@@ -260,7 +270,8 @@ def create_price_bathrooms_boxplot(filtered_data):
         labels={"Price": "Price (millions)", "Bathrooms": "Bathrooms"},
         title='Price Distribution vs. Bathrooms',
         notched=True,  # shows the confidence interval around the median
-        points="all"   # show all points
+        points="all",   # show all points
+        height=800
     )
     fig_price_bathrooms.update_layout(
         yaxis_title='Price (millions)',
