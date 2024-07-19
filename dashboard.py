@@ -61,11 +61,11 @@ app.layout = html.Div([
                      multi=True, clearable=True, searchable=True, placeholder='Select Suburb'),
         html.Label('Price Range', style={'color': 'white'}),
         dcc.RangeSlider(id='price-slider', min=data['Price'].min(), max=data['Price'].max(),
-                        step=0.1 if data['Price'].max() < 5 else 0.5,
-                        marks={price: f"${price:.1f}m" for price in range(int(data['Price'].min()),
+                        step=0.1,
+                        marks={price: f"${price:.0f}m" for price in range(int(data['Price'].min()),
                                                                           int(data['Price'].max()) + 1,
                                                                           1 if data['Price'].max() < 5
-                                                                          else 5)},
+                                                                          else 2)},
                         value=[data['Price'].min(), data['Price'].max()]),
         html.Label('Bedrooms:', style={'color': 'white'}),
         dcc.RangeSlider(id='bedrooms-slider', min=0, max=data['Bedrooms'].max(),
@@ -88,9 +88,11 @@ app.layout = html.Div([
 
     html.Div([
         dcc.Graph(id='price-distribution', style={'height': '800px'}),
+        dcc.Graph(id='listings-on-map', style={'height': '800px'}),
+        dcc.Graph(id='median-price-by-region', style={'height': '800px'}),
+        dcc.Graph(id='median-price-by-district', style={'height': '800px'}),
         dcc.Graph(id='median-price-by-suburb', style={'height': '800px'}),
         dcc.Graph(id='median-price-over-time', style={'height': '800px'}),
-        dcc.Graph(id='listings-on-map', style={'height': '800px'}),
         dcc.Graph(id='listings-by-property-type', style={'height': '800px'}),
         dcc.Graph(id='price-vs-land-area', style={'height': '800px'}),
         dcc.Graph(id='price-vs-bedrooms', style={'height': '800'}),
@@ -135,12 +137,14 @@ def update_dropdowns(selected_region, selected_district, selected_suburb):
     [
      Output('price-distribution', 'figure'),
      Output('listings-on-map', 'figure'),
+     Output('median-price-by-region', 'figure'),
+     Output('median-price-by-district', 'figure'),
+     Output('median-price-by-suburb', 'figure'),
+     Output('median-price-over-time', 'figure'),
      Output('listings-by-property-type', 'figure'),
      Output('price-vs-land-area', 'figure'),
      Output('price-vs-bedrooms', 'figure'),
      Output('price-vs-bathrooms', 'figure'),
-     Output('median-price-by-suburb', 'figure'),
-     Output('median-price-over-time', 'figure'),
      Output('stats-div', 'children')
     ],
     [Input('filter-button', 'n_clicks')],
@@ -157,7 +161,7 @@ def update_dropdowns(selected_region, selected_district, selected_suburb):
 def update_graphs(n_clicks, start_date, end_date,
                   region, district, suburb, price_range,
                   bedroom_range, bathroom_range, property_type):
-    filtered_data = data
+    filtered_data = filtered_data = data[(data['EndDate'] >= start_date)]
     filtered_data_with_nulls = data
     if region != 'All Regions' and region and 'All Regions' not in region:
         filtered_data = filtered_data[filtered_data['Region'].isin(region)]
@@ -194,6 +198,28 @@ def update_graphs(n_clicks, start_date, end_date,
                                                              .isin(property_type))
                                                             | (filtered_data_with_nulls['PropertyType'].isnull())]
 
+    # Median Price by Region
+    median_price_region = filtered_data.groupby('Region')['Price'].median().reset_index()
+    median_price_region_sorted = median_price_region.sort_values(by='Price', ascending=False)
+    fig_region = px.bar(
+        median_price_region_sorted,
+        x='Region',
+        y='Price',
+        labels={"Price": "Median Price (millions)"},
+        title='Median Price by Region'
+    )
+
+    # Median Price by District
+    median_price_district = filtered_data.groupby('District')['Price'].median().reset_index()
+    median_price_district_sorted = median_price_district.sort_values(by='Price', ascending=False)
+    fig_district = px.bar(
+        median_price_district_sorted,
+        x='District',
+        y='Price',
+        labels={"Price": "Median Price (millions)"},
+        title='Median Price by District'
+    )
+
     fig_histogram = px.histogram(filtered_data, x='Price', title='Price Distribution')
     median_price_suburb = filtered_data.groupby('Suburb')['Price'].median().reset_index()
     median_price_suburb_sorted = median_price_suburb.sort_values(by='Price', ascending=False)
@@ -225,7 +251,8 @@ def update_graphs(n_clicks, start_date, end_date,
             labels={"y": "Median Price (millions)", "x": "Date"},
             title='30-Day Rolling Median Price by Date'
         )
-    fig_map = px.scatter_mapbox(filtered_data, lat='Latitude', lon='Longitude', size='Price', zoom=10, height=300)
+    fig_map = px.scatter_mapbox(filtered_data, lat='Latitude', lon='Longitude', size='Price', zoom=4, height=300, 
+                                title='Listings on Map')
     fig_map.update_layout(mapbox_style='open-street-map', title='Listings on Map', height=800)
     fig_bar = px.bar(filtered_data['PropertyType'].value_counts().reset_index(),
                      x='index', y='PropertyType', title='Number of Listings by Property Type')
@@ -239,8 +266,9 @@ def update_graphs(n_clicks, start_date, end_date,
         html.Div(f"Count: {count}", style={'marginBottom': '10px'}),
         html.Div(f"Median Price: ${median_price:.2f}m")
     ]
-    return fig_histogram, fig_map, fig_bar, fig_scatter, fig_price_bedrooms, fig_price_bathrooms, \
-        fig_median_price_suburb, fig_median_price_time, stats_text
+    return (fig_histogram, fig_map, fig_region, fig_district, fig_median_price_suburb,
+            fig_median_price_time, fig_bar, fig_scatter, fig_price_bedrooms,
+            fig_price_bathrooms, stats_text)
 
 
 def create_price_bedrooms_boxplot(filtered_data):
