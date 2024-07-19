@@ -148,6 +148,11 @@ def update_dropdowns(selected_region, selected_district, selected_suburb):
      Output('stats-div', 'children')
     ],
     [Input('filter-button', 'n_clicks')],
+    [
+        Input('median-price-by-region', 'clickData'),
+        Input('median-price-by-district', 'clickData'),
+        Input('median-price-by-suburb', 'clickData'),
+    ],
     [State('date-picker-range', 'start_date'),
      State('date-picker-range', 'end_date'),
      State('region-dropdown', 'value'),
@@ -158,11 +163,22 @@ def update_dropdowns(selected_region, selected_district, selected_suburb):
      State('bathrooms-slider', 'value'),
      State('property-type-dropdown', 'value')]
 )
-def update_graphs(n_clicks, start_date, end_date,
+def update_graphs(n_clicks, region_click, district_click, suburb_click,
+                  start_date, end_date,
                   region, district, suburb, price_range,
                   bedroom_range, bathroom_range, property_type):
-    filtered_data = filtered_data = data[(data['EndDate'] >= start_date)]
-    filtered_data_with_nulls = data
+    ctx = dash.callback_context
+    if not ctx.triggered or ctx.triggered[0]['prop_id'] == 'filter-button.n_clicks':
+        filtered_data = filtered_data = data[(data['EndDate'] >= start_date)]
+        filtered_data_with_nulls = data
+    else:
+        trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        category_value = ctx.triggered[0]['value']['points'][0]['x']
+        if trigger_id in ['median-price-by-region', 'median-price-by-district', 'median-price-by-suburb']:
+            filtered_data = data[data[trigger_id.split('-')[3].title()] == category_value]  # Assumes ID naming convention
+        filtered_data = filtered_data = filtered_data[(filtered_data['EndDate'] >= start_date)]
+        filtered_data_with_nulls = filtered_data
+
     if region != 'All Regions' and region and 'All Regions' not in region:
         filtered_data = filtered_data[filtered_data['Region'].isin(region)]
         filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Region'].isin(region)) |
