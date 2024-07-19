@@ -26,6 +26,8 @@ app = dash.Dash(__name__)
 server = app.server
 data = fetch_data(utils.connect_to_supabase())
 data['Price'] = data['Price'] / 1000000
+data['StartDate'] = pd.to_datetime(data['StartDate'])
+data['EndDate'] = pd.to_datetime(data['EndDate'])
 
 # Generate options for dropdowns
 regions = [{'label': region, 'value': region} for region in data['Region'].unique()]
@@ -175,7 +177,7 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
         trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
         category_value = ctx.triggered[0]['value']['points'][0]['x']
         if trigger_id in ['median-price-by-region', 'median-price-by-district', 'median-price-by-suburb']:
-            filtered_data = data[data[trigger_id.split('-')[3].title()] == category_value]  # Assumes ID naming convention
+            filtered_data = data[data[trigger_id.split('-')[3].title()] == category_value]
         filtered_data = filtered_data = filtered_data[(filtered_data['EndDate'] >= start_date)]
         filtered_data_with_nulls = filtered_data
 
@@ -250,7 +252,7 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
     filtered_data['LastUpdatedAt'] = pd.to_datetime(filtered_data['LastUpdatedAt'])
     n_days = (filtered_data['LastUpdatedAt'].max() - filtered_data['LastUpdatedAt'].min()).days
     filtered_data.set_index('LastUpdatedAt', inplace=True)
-    if n_days < 30:
+    if n_days < 10:
         # Just show one boxplot for the median price, but make it overall... no x split
         fig_median_price_time = px.box(
             filtered_data,
@@ -259,16 +261,31 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
             labels={"Price": "Price (millions)"}
         )
     else:
-        rolling_median = filtered_data['Price'].resample('D').median().rolling(window=30, min_periods=1).median()
+        date_range = pd.date_range(start=data['LastUpdatedAt'].min(), end=data['LastUpdatedAt'].max(), freq='D')
+        rolling_median = [calculate_median_price(filtered_data, date) for date in date_range]
         fig_median_price_time = px.line(
             rolling_median,
-            x=rolling_median.index,
-            y=rolling_median.values,
+            x=date_range,
+            y=rolling_median,
             labels={"y": "Median Price (millions)", "x": "Date"},
-            title='30-Day Rolling Median Price by Date'
+            title='Median Price by Date'
         )
     fig_map = px.scatter_mapbox(filtered_data, lat='Latitude', lon='Longitude', size='Price', zoom=4, height=300, 
-                                title='Listings on Map')
+                                title='Listings on Map',
+                                hover_data={
+                                    'Title': True,
+                                    'Price': ':.2f',
+                                    'Region': True,
+                                    'District': True,
+                                    'Suburb': True,
+                                    'Area': True,
+                                    'LandArea': True,
+                                    'Bedrooms': True,
+                                    'Bathrooms': True,
+                                    'PropertyType': True,
+                                    'StartDate': True,
+
+                                })
     fig_map.update_layout(mapbox_style='open-street-map', title='Listings on Map', height=800)
     fig_bar = px.bar(filtered_data['PropertyType'].value_counts().reset_index(),
                      x='index', y='PropertyType', title='Number of Listings by Property Type')
@@ -323,6 +340,12 @@ def create_price_bathrooms_boxplot(filtered_data):
         xaxis_type='linear'  # Treats the bathroom numbers as categorical
     )
     return fig_price_bathrooms
+
+
+def calculate_median_price(filtered_data, date):
+    # Filter listings that were active on 'date'
+    active_listings = filtered_data[(filtered_data['StartDate'] <= date) & (filtered_data['EndDate'] >= date)]
+    return active_listings['Price'].median()
 
 
 if __name__ == '__main__':
