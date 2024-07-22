@@ -95,6 +95,7 @@ app.layout = html.Div([
         dcc.Graph(id='median-price-by-district', style={'height': '800px'}),
         dcc.Graph(id='median-price-by-suburb', style={'height': '800px'}),
         dcc.Graph(id='median-price-over-time', style={'height': '800px'}),
+        dcc.Graph(id='listing-count-over-time', style={'height': '800px'}),
         dcc.Graph(id='listings-by-property-type', style={'height': '800px'}),
         dcc.Graph(id='price-vs-land-area', style={'height': '800px'}),
         dcc.Graph(id='price-vs-bedrooms', style={'height': '800'}),
@@ -143,6 +144,7 @@ def update_dropdowns(selected_region, selected_district, selected_suburb):
      Output('median-price-by-district', 'figure'),
      Output('median-price-by-suburb', 'figure'),
      Output('median-price-over-time', 'figure'),
+     Output('listing-count-over-time', 'figure'),
      Output('listings-by-property-type', 'figure'),
      Output('price-vs-land-area', 'figure'),
      Output('price-vs-bedrooms', 'figure'),
@@ -270,7 +272,7 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
             labels={"y": "Median Price (millions)", "x": "Date"},
             title='Median Price by Date'
         )
-    fig_map = px.scatter_mapbox(filtered_data, lat='Latitude', lon='Longitude', size='Price', zoom=4, height=300, 
+    fig_map = px.scatter_mapbox(filtered_data, lat='Latitude', lon='Longitude', size='Price', zoom=4, height=300,
                                 title='Listings on Map',
                                 hover_data={
                                     'Title': True,
@@ -299,8 +301,17 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
         html.Div(f"Count: {count}", style={'marginBottom': '10px'}),
         html.Div(f"Median Price: ${median_price:.2f}m")
     ]
+    date_range = pd.date_range(start=data['LastUpdatedAt'].min(), end=data['LastUpdatedAt'].max(), freq='D')
+    listing_count_by_date = [get_listing_count(filtered_data_with_nulls, date) for date in date_range]
+    fig_listing_count_over_time = px.line(
+        x=date_range,
+        y=listing_count_by_date,
+        title='Listing Count Over Time',
+        labels={"y": "Number of Listings", "x": "Date"}
+    )
+    print(filtered_data_with_nulls['Title'].values)
     return (fig_histogram, fig_map, fig_region, fig_district, fig_median_price_suburb,
-            fig_median_price_time, fig_bar, fig_scatter, fig_price_bedrooms,
+            fig_median_price_time, fig_listing_count_over_time, fig_bar, fig_scatter, fig_price_bedrooms,
             fig_price_bathrooms, stats_text)
 
 
@@ -343,9 +354,12 @@ def create_price_bathrooms_boxplot(filtered_data):
 
 
 def calculate_median_price(filtered_data, date):
-    # Filter listings that were active on 'date'
     active_listings = filtered_data[(filtered_data['StartDate'] <= date) & (filtered_data['EndDate'] >= date)]
     return active_listings['Price'].median()
+
+
+def get_listing_count(filtered_data, date):
+    return len(filtered_data[(filtered_data['StartDate'] <= date) & (filtered_data['EndDate'] >= date)])
 
 
 if __name__ == '__main__':
