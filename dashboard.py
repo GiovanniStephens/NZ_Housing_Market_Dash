@@ -46,7 +46,7 @@ app.layout = html.Div([
         html.Label('Start Date Range:', style={'color': 'white'}),
         dcc.DatePickerRange(
             id='date-picker-range',
-            start_date="2024-07-08",
+            start_date=data['LastUpdatedAt'].min(),
             end_date=data['LastUpdatedAt'].max(),
             display_format='MMM D, YYYY',
             style={'marginBottom': '20px', 'fontSize': '12px'}
