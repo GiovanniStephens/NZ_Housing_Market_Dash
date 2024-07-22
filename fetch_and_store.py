@@ -81,6 +81,7 @@ def extract_price(price_string):
 
 def store_date(data, supabase):
     data = data.drop_duplicates(subset=['ListingId'])
+    data['ListingStatus'] = 'Listed'
     data['StartDate'] = data['StartDate'].apply(convert_date_string)
     data['EndDate'] = data['EndDate'].apply(convert_date_string)
     data['Price'] = data['PriceDisplay'].apply(extract_price)
@@ -98,9 +99,19 @@ def store_date(data, supabase):
     supabase.table("Listings").upsert(data_to_insert, on_conflict='ListingId').execute()
 
 
+def reconcile_delisted_listings(data_df, supabase):
+    db_listings = supabase.table('Listings').select('ListingId').eq('ListingStatus', 'Listed').execute()
+    db_listings = [x['ListingId'] for x in db_listings.data]
+    db_listings_set = set(db_listings)
+    fetched_listings_set = set(data_df['ListingId'])
+    delisted_listings = db_listings_set - fetched_listings_set
+    supabase.table('Listings').update({'ListingStatus': 'Delisted'}).in_('ListingId', delisted_listings).execute()
+
+
 if __name__ == '__main__':
     trademe = connect_to_trademe()
     url = os.getenv('TRADEME_HOUSES_URL')
     data = fetch_trademe_data(trademe, url)
     supabase = utils.connect_to_supabase()
+    reconcile_delisted_listings(data, supabase)
     store_date(data, supabase)
