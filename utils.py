@@ -15,8 +15,8 @@ def get_supabase_credentials():
     SUPABASE_API_URL = os.getenv('SUPABASE_URL')
     if SUPABASE_API_KEY is None or SUPABASE_API_URL is None:
         try:
-            SUPABASE_API_KEY = keyring.get_password('Supabase', 'key')
-            SUPABASE_API_URL = keyring.get_password('Supabase', 'url')
+            SUPABASE_API_KEY = keyring.get_password('Supabase', 'housing_key')
+            SUPABASE_API_URL = keyring.get_password('Supabase', 'housing_url')
         except keyring.errors.KeyringError:
             print('No keyring found.')
     return SUPABASE_API_KEY, SUPABASE_API_URL
