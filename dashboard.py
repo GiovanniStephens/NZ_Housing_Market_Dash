@@ -17,7 +17,7 @@ except FileNotFoundError:
 
 
 def fetch_data(supabase):
-    data = supabase.table("Listings").select("*").execute()
+    data = supabase.table("dash_view").select("*").execute()
     data_df = pd.DataFrame(data.data)
     return data_df
 
