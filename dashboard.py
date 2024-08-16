@@ -28,6 +28,7 @@ data = fetch_data(utils.connect_to_supabase())
 data['Price'] = data['Price'] / 1000000
 data['StartDate'] = pd.to_datetime(data['StartDate'])
 data['EndDate'] = pd.to_datetime(data['EndDate'])
+data['LastUpdatedAt'] = pd.to_datetime(data['LastUpdatedAt'])
 
 # Generate options for dropdowns
 regions = [{'label': region, 'value': region} for region in data['Region'].unique()]
@@ -263,7 +264,7 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
             labels={"Price": "Price (millions)"}
         )
     else:
-        date_range = pd.date_range(start=data['LastUpdatedAt'].min(), end=data['LastUpdatedAt'].max(), freq='D')
+        date_range = pd.date_range(start=start_date, end=end_date, freq='D')
         rolling_median = [calculate_median_price(filtered_data, date) for date in date_range]
         fig_median_price_time = px.line(
             rolling_median,
@@ -301,7 +302,7 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
         html.Div(f"Count: {count}", style={'marginBottom': '10px'}),
         html.Div(f"Median Price: ${median_price:.2f}m")
     ]
-    date_range = pd.date_range(start=data['LastUpdatedAt'].min(), end=data['LastUpdatedAt'].max(), freq='D')
+    date_range = pd.date_range(start=start_date, end=end_date, freq='D')
     listing_count_by_date = [get_listing_count(filtered_data_with_nulls, date) for date in date_range]
     fig_listing_count_over_time = px.line(
         x=date_range,
@@ -359,7 +360,12 @@ def calculate_median_price(filtered_data, date):
 
 
 def get_listing_count(filtered_data, date):
-    return len(filtered_data[(filtered_data['StartDate'] <= date) & (filtered_data['EndDate'] >= date)])
+    active_listings = filtered_data[(filtered_data['StartDate'] <= date) & (filtered_data['EndDate'] >= date)
+                                    & (filtered_data['ListingStatus'] == 'Listed')]
+    inactive_listings = filtered_data[(filtered_data['StartDate'] <= date) & (filtered_data['EndDate'] >= date)
+                                      & (filtered_data['ListingStatus'] == 'Delisted')]
+    inactive_listings = inactive_listings[inactive_listings['LastUpdatedAt'] >= date]
+    return len(active_listings) + len(inactive_listings)
 
 
 if __name__ == '__main__':
