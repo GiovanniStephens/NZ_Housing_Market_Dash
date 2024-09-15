@@ -174,7 +174,8 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
                   bedroom_range, bathroom_range, property_type):
     ctx = dash.callback_context
     if not ctx.triggered or ctx.triggered[0]['prop_id'] == 'filter-button.n_clicks':
-        filtered_data = filtered_data = data[(data['EndDate'] >= start_date)]
+        filtered_data = data[data['EndDate'] >= start_date]   # i.e., remove those that have already ended.
+        filtered_data = data[data['StartDate'] <= end_date]   # i.e., remove those that have not started yet.
         filtered_data_with_nulls = data
     else:
         trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
@@ -182,8 +183,11 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
         if trigger_id in ['median-price-by-region', 'median-price-by-district', 'median-price-by-suburb']:
             filtered_data = data[data[trigger_id.split('-')[3].title()] == category_value]
         filtered_data = filtered_data = filtered_data[(filtered_data['EndDate'] >= start_date)]
+        filtered_data = filtered_data[(filtered_data['StartDate'] <= end_date)]
         filtered_data_with_nulls = filtered_data
-
+    filtered_data = filtered_data[~((filtered_data['LastUpdatedAt'] < start_date)
+                                  & (filtered_data['ListingStatus'] == 'Delisted'))]
+    filtered_data_with_nulls = filtered_data
     if region != 'All Regions' and region and 'All Regions' not in region:
         filtered_data = filtered_data[filtered_data['Region'].isin(region)]
         filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Region'].isin(region)) |
@@ -196,8 +200,6 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
         filtered_data = filtered_data[filtered_data['Suburb'].isin(suburb)]
         filtered_data_with_nulls = filtered_data_with_nulls[(filtered_data_with_nulls['Suburb'].isin(suburb)) |
                                                             (filtered_data_with_nulls['Suburb'].isnull())]
-    filtered_data = filtered_data[(filtered_data['LastUpdatedAt'] >= start_date)
-                                  & (filtered_data['LastUpdatedAt'] <= end_date)]
     filtered_data = filtered_data[(filtered_data['Price'] >= price_range[0])
                                   & (filtered_data['Price'] <= price_range[1])]
     filtered_data_with_nulls = filtered_data_with_nulls[((filtered_data_with_nulls['Price'] >= price_range[0])
@@ -290,8 +292,8 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
 
                                 })
     fig_map.update_layout(mapbox_style='open-street-map', title='Listings on Map', height=800)
-    fig_bar = px.bar(filtered_data['PropertyType'].value_counts().reset_index(),
-                     x='index', y='PropertyType', title='Number of Listings by Property Type')
+    counts = filtered_data['PropertyType'].value_counts().reset_index()
+    fig_bar = px.bar(counts, x=counts.index, y='PropertyType', title='Number of Listings by Property Type')
     fig_scatter = px.scatter(filtered_data, x='Area', y='Price', title='Price vs. Floor Area')
     fig_price_bedrooms = create_price_bedrooms_boxplot(filtered_data)
     fig_price_bathrooms = create_price_bathrooms_boxplot(filtered_data)
@@ -310,7 +312,6 @@ def update_graphs(n_clicks, region_click, district_click, suburb_click,
         title='Listing Count Over Time',
         labels={"y": "Number of Listings", "x": "Date"}
     )
-    print(filtered_data_with_nulls['Title'].values)
     return (fig_histogram, fig_map, fig_region, fig_district, fig_median_price_suburb,
             fig_median_price_time, fig_listing_count_over_time, fig_bar, fig_scatter, fig_price_bedrooms,
             fig_price_bathrooms, stats_text)
