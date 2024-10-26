@@ -9,6 +9,7 @@ import numpy as np
 import time
 from datetime import datetime
 from dotenv import load_dotenv
+import math
 
 try:
     load_dotenv()
@@ -79,7 +80,7 @@ def extract_price(price_string):
         return None
 
 
-def store_date(data, supabase):
+def store_date(data, supabase, chunk_size=1000):
     data = data.drop_duplicates(subset=['ListingId'])
     data['ListingStatus'] = 'Listed'
     data['StartDate'] = data['StartDate'].apply(convert_date_string)
@@ -93,10 +94,16 @@ def store_date(data, supabase):
     data['Longitude'] = data['GeographicLocation'].apply(lambda x: float(x['Longitude']))
     columns = os.getenv('LISTING_COLUMNS').split(',')
     data = data[columns]
-    data_to_insert = []
-    for i in range(len(data)):
-        data_to_insert.append(data.iloc[i].to_dict())
-    supabase.table("Listings").upsert(data_to_insert, on_conflict='ListingId').execute()
+    data_to_insert = [data.iloc[i].to_dict() for i in range(len(data))]
+    num_chunks = math.ceil(len(data_to_insert) / chunk_size)
+
+    for i in range(num_chunks):
+        chunk = data_to_insert[i * chunk_size:(i + 1) * chunk_size]
+        try:
+            supabase.table("Listings").upsert(chunk, on_conflict='ListingId').execute()
+        except Exception as e:
+            print(f"Error upserting chunk {i + 1}/{num_chunks}: {e}")
+            continue
 
 
 def reconcile_delisted_listings(data_df, supabase):
