@@ -111,8 +111,11 @@ def reconcile_delisted_listings(data_df, supabase):
     db_listings = [x['ListingId'] for x in db_listings.data]
     db_listings_set = set(db_listings)
     fetched_listings_set = set(data_df['ListingId'])
-    delisted_listings = db_listings_set - fetched_listings_set
-    supabase.table('Listings').update({'ListingStatus': 'Delisted'}).in_('ListingId', delisted_listings).execute()
+    delisted_listings = list(db_listings_set - fetched_listings_set)
+    batch_size = 100
+    for i in range(0, len(delisted_listings), batch_size):
+        batch = delisted_listings[i:i + batch_size]
+        supabase.table('Listings').update({'ListingStatus': 'Delisted'}).in_('ListingId', batch).execute()
 
 
 if __name__ == '__main__':
