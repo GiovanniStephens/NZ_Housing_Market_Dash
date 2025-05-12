@@ -8,8 +8,9 @@ import os
 import pandas as pd
 import re
 from requests_oauthlib import OAuth1Session
-import time
 import utils
+import concurrent.futures
+from os import cpu_count
 
 try:
     load_dotenv()
@@ -35,30 +36,44 @@ def connect_to_trademe():
 
 
 def fetch_trademe_data(trademe, url):
-    # Make initial request to get number of pages
     print('Fetching page 1 of n')
     returned_page_all = trademe.get(url)
+    print('Fetched page 1')
     data_raw = returned_page_all.content
     parsed_data = json.loads(data_raw)
     listings = parsed_data['List']
     total_count = parsed_data['TotalCount']
+    print(f'Total count: {total_count}')
     total_n_requests = int(total_count/500) + 1
+    print(f'Total number of requests: {total_n_requests}')
     data_df = pd.DataFrame.from_dict(listings)
-    for i in range(2, total_n_requests+1):
-        print(f'Fetching page {i} of {total_n_requests}')
+
+    def fetch_page(i):
+        print(f'Starting fetch for page {i}')
         name_num = str(i)
         page_url = f'{url}&page={name_num}&sort_order=Default HTTP/1.1'
         returned_page_all = trademe.get(page_url)
         if returned_page_all.status_code != 200:
-            print('Error: ', returned_page_all.status_code)
+            print(f'Error fetching page {i}: {returned_page_all.status_code}')
             print('Error message: ', returned_page_all.text)
-            # Todo: Implement error handling
-            break
+            return None
+        print(f'Fetched page {i}')
         data_raw = returned_page_all.content
         parsed_data = json.loads(data_raw)
         listings = parsed_data['List']
-        data_df = pd.concat([data_df, pd.DataFrame.from_dict(listings)], ignore_index=True)
-        time.sleep(0.5)     # Sleep for 0.5 seconds to avoid rate limiting
+        return pd.DataFrame.from_dict(listings)
+    if total_n_requests > 1:
+        max_workers = max(1, cpu_count() * 2)
+        print(f'Using {max_workers} threads for parallel fetching')
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(fetch_page, i) for i in range(2, total_n_requests+1)]
+            for idx, future in enumerate(concurrent.futures.as_completed(futures), start=2):
+                print(f'Waiting for result from page {idx}')
+                result = future.result()
+                if result is not None:
+                    print(f'Concatenating page {idx}')
+                    data_df = pd.concat([data_df, result], ignore_index=True)
+    print('All pages fetched and concatenated')
     return data_df
 
 
