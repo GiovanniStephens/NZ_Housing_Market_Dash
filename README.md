@@ -85,6 +85,19 @@ Create a table called 'Listings' in Supabase with the following schema:
 
 Note that LastUpdatedAt should default to now() in NZST. 
 
+#### Database indexes
+
+The daily fetch reconciles delisted listings by paging through every currently-`Listed` row using
+keyset pagination on `ListingId`. Create the following partial index once (Supabase SQL editor) so
+that scan is an index-only scan over just the active subset — this keeps reconciliation fast as
+`Delisted` history accumulates and prevents statement-timeout errors:
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_listings_active
+  ON "Listings" ("ListingId")
+  WHERE "ListingStatus" = 'Listed';
+```
+
 ### Extract and Store the Data
 
 Run the `fetch_and_Store.py` script to fetch data from Trademe and store it in the Supabase database.

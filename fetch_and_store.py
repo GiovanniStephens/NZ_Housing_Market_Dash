@@ -184,24 +184,36 @@ def reconcile_delisted_listings(data_df, supabase):
     start_time = time.time()
     logging.info('Starting reconciliation of delisted listings')
 
-    # Fetch all listed listings with pagination to avoid timeout
+    # Fetch all listed listings using keyset (cursor) pagination on ListingId.
+    # Keyset paging (WHERE ListingId > last_id ORDER BY ListingId LIMIT page_size)
+    # seeks via the ListingId primary-key index and reads a fixed page each time,
+    # so it runs in constant time regardless of depth. This avoids the OFFSET
+    # pagination that degraded with depth and tripped Supabase's statement timeout
+    # (error 57014). ListingId is unique (the upsert conflict target), so page
+    # boundaries can neither skip nor duplicate rows.
     db_listings = []
     page_size = 1000
-    offset = 0
+    last_id = 0  # all TradeMe ListingIds are positive integers
 
     logging.info('Fetching currently listed items from database (paginated)...')
     fetch_start = time.time()
     pages_fetched = 0
 
     while True:
-        response = supabase.table('Listings').select('ListingId').eq('ListingStatus', 'Listed').range(offset, offset + page_size - 1).execute()
+        response = (supabase.table('Listings')
+                    .select('ListingId')
+                    .eq('ListingStatus', 'Listed')
+                    .gt('ListingId', last_id)
+                    .order('ListingId')
+                    .limit(page_size)
+                    .execute())
         if not response.data:
             break
         db_listings.extend([x['ListingId'] for x in response.data])
+        last_id = response.data[-1]['ListingId']
         pages_fetched += 1
         if pages_fetched % 10 == 0:
             logging.info(f'Fetched {len(db_listings):,} listings so far ({pages_fetched} pages)...')
-        offset += page_size
         if len(response.data) < page_size:
             break
 
