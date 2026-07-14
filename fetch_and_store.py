@@ -144,7 +144,7 @@ def store_date(data, supabase, chunk_size=1000):
     data['StartDate'] = data['StartDate'].apply(convert_date_string)
     data['EndDate'] = data['EndDate'].apply(convert_date_string)
     data['Price'] = data['PriceDisplay'].apply(extract_price)
-    data['Price'] = data['Price'].replace('', None).astype(float, errors='ignore').replace({np.nan: None})
+    data['Price'] = pd.to_numeric(data['Price'], errors='coerce').replace({np.nan: None})
     data['Parking'] = data['Parking'].replace('', None)
     data['Amenities'] = data['Amenities'].fillna('').replace('', None)
     data = data.replace({np.nan: None})
