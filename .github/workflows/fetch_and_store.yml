@@ -22,7 +22,15 @@ jobs:
           python-version: '3.11.7'  # Ensure this matches the Python version you need.
 
       - name: Install dependencies
+        env:
+          SCRAPEKIT_DEPLOY_KEY: ${{ secrets.SCRAPEKIT_DEPLOY_KEY }}
         run: |
+          # scrapekit is private; a read-only deploy key on it lets pip clone it over SSH.
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SCRAPEKIT_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # GitHub's published host key, so the clone doesn't trust whatever answers first.
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
