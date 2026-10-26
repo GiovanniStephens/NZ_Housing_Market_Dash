@@ -8,7 +8,8 @@ import numpy as np
 import os
 import pandas as pd
 import re
-from requests_oauthlib import OAuth1Session
+from scrapekit.sites import accept_all
+from scrapekit.sites.trademe import TradeMe
 import time
 import utils
 import concurrent.futures
@@ -42,7 +43,8 @@ def get_trademe_credentials():
 
 def connect_to_trademe():
     TRADEME_API_KEY, TRADEME_API_SECRET = get_trademe_credentials()
-    trademe = OAuth1Session(TRADEME_API_KEY, TRADEME_API_SECRET)
+    # The adapter's signed client only: paging and status handling stay as they were here.
+    trademe = TradeMe(TRADEME_API_KEY, TRADEME_API_SECRET).http
     return trademe
 
 
@@ -51,8 +53,8 @@ def fetch_trademe_data(trademe, url):
     logging.info('Starting TradeMe data fetch')
     logging.info('Fetching page 1 to determine total count')
 
-    returned_page_all = trademe.get(url)
-    logging.info(f'Page 1 fetched successfully (status: {returned_page_all.status_code})')
+    returned_page_all = trademe.get(url, accept=accept_all)
+    logging.info(f'Page 1 fetched successfully (status: {returned_page_all.status})')
 
     data_raw = returned_page_all.content
     parsed_data = json.loads(data_raw)
@@ -68,9 +70,9 @@ def fetch_trademe_data(trademe, url):
         page_start = time.time()
         name_num = str(i)
         page_url = f'{url}&page={name_num}&sort_order=Default HTTP/1.1'
-        returned_page_all = trademe.get(page_url)
-        if returned_page_all.status_code != 200:
-            logging.error(f'Failed to fetch page {i}: HTTP {returned_page_all.status_code}')
+        returned_page_all = trademe.get(page_url, accept=accept_all)
+        if returned_page_all.status != 200:
+            logging.error(f'Failed to fetch page {i}: HTTP {returned_page_all.status}')
             logging.error(f'Error message: {returned_page_all.text}')
             return None
         page_time = time.time() - page_start

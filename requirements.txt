@@ -6,5 +6,6 @@ numpy==1.26.4
 pandas==1.5.3
 plotly==5.20.0
 python-dotenv==1.2.2
-requests_oauthlib==2.0.0
 supabase==2.5.1
+# Private: CI installs it with the SCRAPEKIT_DEPLOY_KEY secret.
+scrapekit[trademe] @ git+ssh://git@github.com/GiovanniStephens/scrapekit.git@v0.3.0#subdirectory=python
